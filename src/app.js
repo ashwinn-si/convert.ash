@@ -6,8 +6,11 @@ import { FORMAT_INFO, getFileIcon, formatFileSize, detectFormat } from './utils/
 import { getAvailableOutputFormats, canConvert, convert, getInputFormats } from './converters/registry.js';
 import { saveAs } from 'file-saver';
 import { zip, strToU8 } from 'fflate';
-import { createIcons, Zap, Moon, Sun, ArrowRightLeft, FolderOpen, FileText, Sheet, Presentation, FileCode2, Film, Music, File, Check, Download, AlertTriangle, X, ShieldCheck } from 'lucide';
+import { createIcons, Zap, Moon, Sun, ArrowRightLeft, FolderOpen, Plus, FileText, Sheet, Presentation, FileCode2, Film, Music, Image as ImageIcon, Video, File, Check, Download, AlertTriangle, X, ShieldCheck } from 'lucide';
 
+const ICONS = {
+  Zap, Moon, Sun, ArrowRightLeft, FolderOpen, Plus, FileText, Sheet, Presentation, FileCode2, Film, Music, Image: ImageIcon, Video, File, Check, Download, AlertTriangle, X, ShieldCheck
+};
 let selectedFiles = [];
 let inputFormat = '';
 let outputFormat = '';
@@ -26,7 +29,7 @@ export function initApp() {
     </div>
 
     <div class="logo">
-      <h1><i data-lucide="zap" style="display:inline-block; vertical-align:text-bottom; color:var(--accent);"></i> convert<span>.ash</span></h1>
+      <h1> convert<span>.ash</span></h1>
       <p>Universal file converter — runs entirely in your browser</p>
     </div>
 
@@ -101,7 +104,7 @@ export function initApp() {
   bindEvents();
   populateInputFormats();
   createIcons({
-    icons: { Zap, Moon, Sun, ArrowRightLeft, FolderOpen, FileText, Sheet, Presentation, FileCode2, Film, Music, File, Check, Download, AlertTriangle, X, ShieldCheck, Plus: FolderOpen } // using FolderOpen as placeholder for plus if missing
+    icons: ICONS
   });
   // Note: we'll call createIcons() again after dynamic updates
 }
@@ -194,6 +197,7 @@ function bindEvents() {
 
   $('input-format').addEventListener('change', e => {
     inputFormat = e.target.value;
+    $('file-input').accept = inputFormat ? `.${inputFormat}` : '';
     populateOutputFormats();
   });
 
@@ -261,17 +265,43 @@ function toggleTheme() {
 function addFiles(files) {
   if (!files.length) return;
 
-  // If this is the very first file, auto-detect format
-  if (selectedFiles.length === 0) {
-    const detected = detectFormat(files[0]);
-    if (detected && FORMAT_INFO[detected]) {
-      inputFormat = detected;
-      document.getElementById('input-format').value = detected;
-      populateOutputFormats();
+  let validFiles = [];
+  let rejectedCount = 0;
+
+  for (const file of files) {
+    const format = detectFormat(file);
+
+    // Auto-detect format from the very first valid file
+    if (!inputFormat) {
+      if (format && FORMAT_INFO[format]) {
+        inputFormat = format;
+        document.getElementById('input-format').value = format;
+        populateOutputFormats();
+
+        // Lock subsequent file uploads to this format via OS dialog
+        document.getElementById('file-input').accept = `.${format}`;
+
+        validFiles.push(file);
+      } else {
+        rejectedCount++;
+      }
+    } else {
+      // Enforce the same format for subsequent files
+      if (format === inputFormat) {
+        validFiles.push(file);
+      } else {
+        rejectedCount++;
+      }
     }
   }
 
-  selectedFiles = [...selectedFiles, ...files];
+  if (rejectedCount > 0) {
+    showToast(`⚠️ Skipped ${rejectedCount} file(s) with mismatched formats.`);
+  }
+
+  if (!validFiles.length) return;
+
+  selectedFiles = [...selectedFiles, ...validFiles];
   renderFileList();
 
   document.getElementById('dropzone').style.display = 'none';
@@ -311,7 +341,7 @@ function renderFileList() {
       </div>
     `;
   }).join('');
-  createIcons();
+  createIcons({ icons: ICONS });
 }
 
 // ─── Conversion ───
@@ -338,6 +368,7 @@ async function handleConvert() {
   hideResults();
   progress.classList.add('active');
   btn.disabled = true;
+  btn.classList.add('converting');
   btn.textContent = 'Converting...';
   fill.style.width = '0%';
 
@@ -406,11 +437,13 @@ async function handleConvert() {
 
     setTimeout(() => {
       progress.classList.remove('active');
+      btn.classList.remove('converting');
       document.getElementById('download-section').classList.add('active');
     }, 400);
   } catch (err) {
     console.error(err);
     progress.classList.remove('active');
+    btn.classList.remove('converting');
     document.getElementById('error-section').classList.add('active');
     document.getElementById('error-text').textContent = err.message;
     // Restore remove buttons on error
@@ -435,6 +468,7 @@ function resetAll() {
   document.getElementById('file-list').style.display = 'none';
   document.getElementById('dropzone').style.display = '';
   document.getElementById('file-input').value = '';
+  document.getElementById('file-input').accept = '';
   document.getElementById('add-more-container').style.display = 'none';
 
   inputFormat = '';
