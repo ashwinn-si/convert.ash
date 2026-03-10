@@ -23,6 +23,9 @@ export function initApp() {
 
   document.getElementById('app').innerHTML = `
     <div class="top-nav">
+      <button class="nav-btn" id="editor-btn" title="Write text">
+        <i data-lucide="file-text"></i>
+      </button>
       <button class="theme-toggle" id="theme-toggle" title="Toggle Theme">
         <i data-lucide="${savedTheme === 'light' ? 'moon' : 'sun'}"></i>
       </button>
@@ -98,6 +101,32 @@ export function initApp() {
     <div style="text-align: center; margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
       <p class="privacy"><i data-lucide="shield-check" style="width:14px; height:14px; display:inline-block; vertical-align:text-bottom;"></i> Your files never leave your browser</p>
       <p style="font-size: 0.75rem; color: var(--text-dim);">Built by <a href="https://github.com/ashwinn-si" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none; font-weight: 500;">Ashwin S I</a></p>
+    </div>
+
+    <!-- Text Editor Modal -->
+    <div class="modal-overlay" id="editor-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Write Document</h2>
+          <button class="modal-close" id="editor-close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <textarea id="editor-textarea" placeholder="Start typing..."></textarea>
+        </div>
+        <div class="modal-footer" style="flex-direction: column; align-items: stretch;">
+          <div class="modal-progress" id="editor-progress" style="display:none; margin-bottom: 1rem;">
+            <div class="progress-track"><div class="progress-fill" id="editor-progress-fill"></div></div>
+            <div class="progress-status" style="margin-top: 4px;">
+              <span id="editor-progress-text">Converting...</span>
+              <span id="editor-progress-percent" style="float: right;">0%</span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <button class="modal-btn outline" id="save-docx-btn"><i data-lucide="file-text" style="width:16px; height:16px;"></i> Save as DOCX</button>
+            <button class="modal-btn primary" id="save-pdf-btn"><i data-lucide="file" style="width:16px; height:16px;"></i> Save as PDF</button>
+          </div>
+        </div>
+      </div>
     </div>
   `;
 
@@ -242,6 +271,26 @@ function bindEvents() {
   $('convert-btn').addEventListener('click', handleConvert);
   $('download-btn').addEventListener('click', handleDownload);
   $('convert-another-btn').addEventListener('click', resetAll);
+
+  // Editor Modal Events
+  $('editor-btn').addEventListener('click', () => {
+    $('editor-modal').classList.add('active');
+    $('editor-textarea').focus();
+  });
+
+  $('editor-close').addEventListener('click', () => {
+    $('editor-modal').classList.remove('active');
+  });
+
+  // Close modal when clicking outside
+  $('editor-modal').addEventListener('click', (e) => {
+    if (e.target === $('editor-modal')) {
+      $('editor-modal').classList.remove('active');
+    }
+  });
+
+  $('save-pdf-btn').addEventListener('click', () => handleEditorConvert('pdf'));
+  $('save-docx-btn').addEventListener('click', () => handleEditorConvert('docx'));
 }
 
 // ─── Theme ───
@@ -454,10 +503,58 @@ async function handleConvert() {
   }
 }
 
+async function handleEditorConvert(format) {
+  const text = document.getElementById('editor-textarea').value.trim();
+  if (!text) {
+    showToast('⚠️ Please enter some text first');
+    return;
+  }
+
+  const pdfBtn = document.getElementById('save-pdf-btn');
+  const docxBtn = document.getElementById('save-docx-btn');
+  const progress = document.getElementById('editor-progress');
+  const fill = document.getElementById('editor-progress-fill');
+  const statusText = document.getElementById('editor-progress-text');
+  const pct = document.getElementById('editor-progress-percent');
+
+  pdfBtn.disabled = true;
+  docxBtn.disabled = true;
+  progress.style.display = 'block';
+  fill.style.width = '0%';
+  pct.textContent = '0%';
+  statusText.textContent = `Converting to ${format.toUpperCase()}...`;
+
+  try {
+    const file = new Blob([text], { type: "text/plain" });
+    file.name = "document.txt";
+    const resultBlob = await convert(file, 'txt', format, p => {
+      fill.style.width = `${p}%`;
+      pct.textContent = `${p}%`;
+    });
+
+    fill.style.width = '100%';
+    pct.textContent = '100%';
+    statusText.textContent = 'Complete!';
+
+    setTimeout(() => {
+      saveAs(resultBlob, `document.${format}`);
+      progress.style.display = 'none';
+      pdfBtn.disabled = false;
+      docxBtn.disabled = false;
+    }, 500);
+
+  } catch (err) {
+    console.error(err);
+    statusText.textContent = 'Error: ' + err.message;
+    pdfBtn.disabled = false;
+    docxBtn.disabled = false;
+  }
+}
+
 function handleDownload() {
   if (!convertedBlob) return;
   saveAs(convertedBlob, convertedFilename);
-  showToast('✅ Downloaded');
+  showToast('Downloaded');
 }
 
 function resetAll() {
