@@ -21,6 +21,9 @@ export function initApp() {
   const savedTheme = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
 
+  // Send analytics when page loads
+  sendPageAnalytics();
+
   document.getElementById('app').innerHTML = `
     <div class="top-nav">
       <button class="nav-btn" id="editor-btn" title="Write text">
@@ -592,4 +595,31 @@ function showToast(msg) {
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => { t.classList.add('fade-out'); setTimeout(() => t.remove(), 300); }, 2500);
+}
+
+// ─── Analytics ───
+
+function getUrlParameter(name) {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get(name);
+}
+
+async function sendPageAnalytics() {
+  try {
+    // Get traffic type from URL parameters, default to "normal"
+    const trafficType = getUrlParameter('trafficType') || 'normal';
+
+    // Send analytics request
+    const analyticsUrl = `https://api.ashwinsi.in/personal-server/website/add-analytics?trafficType=${encodeURIComponent(trafficType)}&website=convert`;
+
+    await fetch(analyticsUrl, {
+      method: 'GET',
+      mode: 'cors'
+    });
+
+    console.log('Analytics sent successfully with traffic type:', trafficType);
+  } catch (error) {
+    console.log('Analytics request failed:', error);
+    // Fail silently - don't disrupt user experience
+  }
 }
