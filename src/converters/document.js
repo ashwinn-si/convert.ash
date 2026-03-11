@@ -54,7 +54,7 @@ function htmlToPdf(htmlContent) {
     const html2pdf = mod.default;
     const container = document.createElement('div');
     container.innerHTML = htmlContent;
-    container.style.cssText = 'font-family: serif; font-size: 14px; line-height: 1.6; padding: 20px; max-width: 800px; color: #000;';
+    container.style.cssText = 'font-family: serif; font-size: 14px; line-height: 1.6; padding: 20px; max-width: 800px; color: #000; letter-spacing: 0.05px; font-variant-ligatures: none; word-spacing: 1px;';
     document.body.appendChild(container);
 
     return html2pdf()
@@ -62,7 +62,7 @@ function htmlToPdf(htmlContent) {
       .set({
         margin: [15, 15, 15, 15],
         filename: 'converted.pdf',
-        html2canvas: { scale: 2 },
+        html2canvas: { scale: 2, letterRendering: true, useCORS: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       })
       .outputPdf('blob')
