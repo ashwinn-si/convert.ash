@@ -78,7 +78,8 @@ function textToHtml(text) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
-  return `<div style="white-space: pre-wrap; word-wrap: break-word;">${escaped}</div>`;
+  const paragraphs = escaped.split('\n\n').filter(Boolean);
+  return paragraphs.map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('\n');
 }
 
 function stripHtml(html) {
