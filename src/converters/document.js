@@ -74,12 +74,15 @@ function htmlToPdf(htmlContent) {
 }
 
 function textToHtml(text) {
+  // Escape HTML but preserve whitespace and line breaks
   const escaped = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+  // Split by double newlines for paragraphs
   const paragraphs = escaped.split('\n\n').filter(Boolean);
-  return paragraphs.map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('\n');
+  // Use <pre> to preserve all whitespace and line breaks
+  return paragraphs.map((p) => `<pre>${p}</pre>`).join('\n');
 }
 
 function stripHtml(html) {
