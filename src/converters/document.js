@@ -81,8 +81,8 @@ function textToHtml(text) {
     .replace(/>/g, '&gt;');
   // Split by double newlines for paragraphs
   const paragraphs = escaped.split('\n\n').filter(Boolean);
-  // Use <pre> to preserve all whitespace and line breaks
-  return paragraphs.map((p) => `<pre>${p}</pre>`).join('\n');
+  // Use <pre> with pre-wrap to preserve whitespace/line breaks and wrap long lines
+  return paragraphs.map((p) => `<pre style="white-space: pre-wrap; word-break: break-word;">${p}</pre>`).join('\n');
 }
 
 function stripHtml(html) {
