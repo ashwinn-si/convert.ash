@@ -37,8 +37,17 @@ async function pdfToText(file) {
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    const text = content.items.map((item) => item.str).join(' ');
-    pages.push(text);
+    // Preserve spacing and line breaks by checking item positions
+    let text = '';
+    let lastY = null;
+    content.items.forEach((item) => {
+      if (lastY !== null && Math.abs(item.transform[5] - lastY) > 5) {
+        text += '\n';
+      }
+      text += item.str + (item.hasEOL ? '\n' : ' ');
+      lastY = item.transform[5];
+    });
+    pages.push(text.trim());
   }
   return pages.join('\n\n');
 }
@@ -69,6 +78,10 @@ function htmlToPdf(htmlContent) {
       .then((blob) => {
         document.body.removeChild(container);
         return blob;
+      })
+      .catch((error) => {
+        document.body.removeChild(container);
+        throw error;
       });
   });
 }
@@ -99,7 +112,7 @@ async function textToDocx(text) {
         children: lines.map(
           (line) =>
             new Paragraph({
-              children: [new TextRun({ text: line, font: 'Calibri', size: 24 })],
+              children: [new TextRun({ text: line || ' ', font: 'Calibri', size: 24 })],
             })
         ),
       },
@@ -117,12 +130,27 @@ function textToRtf(text) {
 }
 
 function rtfToText(rtfContent) {
-  // Basic RTF stripping — remove RTF control words
-  return rtfContent
-    .replace(/\{\\[^}]*\}/g, '')
-    .replace(/\\[a-z]+\d*\s?/g, '')
-    .replace(/[{}]/g, '')
-    .trim();
+  // More robust RTF stripping
+  let text = rtfContent;
+
+  // Remove font and color tables
+  text = text.replace(/\{\\fonttbl[^}]*\}/g, '');
+  text = text.replace(/\{\\colortbl[^}]*\}/g, '');
+
+  // Convert RTF line breaks
+  text = text.replace(/\\par\b/g, '\n');
+  text = text.replace(/\\line\b/g, '\n');
+  text = text.replace(/\\tab\b/g, '\t');
+
+  // Remove RTF control words but preserve their optional space
+  text = text.replace(/\\[a-z]+\d*\s?/gi, '');
+
+  // Remove remaining braces and clean up
+  text = text.replace(/[{}]/g, '');
+  text = text.replace(/\s+/g, ' ');
+  text = text.replace(/\n\s+/g, '\n');
+
+  return text.trim();
 }
 
 // ─── Conversion matrix ───
